@@ -3,6 +3,9 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Load environment variables
 dotenv.config();
@@ -14,13 +17,15 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'healthy', timestamp: new Date().toISOString() });
-});
+// Fix for __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-// Mock Employee Data
-const mockEmployees = [
+// File path for data persistence
+const DATA_FILE = path.join(__dirname, 'employees-data.json');
+
+// Initial mock data
+const initialEmployees = [
   {
     id: '1',
     employeeId: 'EMP001',
@@ -109,6 +114,47 @@ const mockEmployees = [
   }
 ];
 
+// Load or initialize data
+let employees: any[] = [];
+
+const loadData = () => {
+  try {
+    if (fs.existsSync(DATA_FILE)) {
+      const data = fs.readFileSync(DATA_FILE, 'utf-8');
+      employees = JSON.parse(data);
+      console.log(`📂 Loaded ${employees.length} employees from file`);
+    } else {
+      employees = [...initialEmployees];
+      saveData();
+      console.log(`📝 Initialized with ${employees.length} default employees`);
+    }
+  } catch (error) {
+    console.error('Error loading data:', error);
+    employees = [...initialEmployees];
+  }
+};
+
+const saveData = () => {
+  try {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(employees, null, 2));
+    console.log(`💾 Saved ${employees.length} employees to file`);
+  } catch (error) {
+    console.error('Error saving data:', error);
+  }
+};
+
+// Load data on startup
+loadData();
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'healthy', 
+    timestamp: new Date().toISOString(),
+    employeesCount: employees.length 
+  });
+});
+
 // Employee endpoints
 app.get('/api/employees', (req, res) => {
   const page = parseInt(req.query.page as string) || 1;
@@ -118,7 +164,7 @@ app.get('/api/employees', (req, res) => {
   const status = req.query.status as string || '';
 
   // Filter employees
-  let filteredEmployees = [...mockEmployees];
+  let filteredEmployees = [...employees];
   
   if (search) {
     filteredEmployees = filteredEmployees.filter(emp => 
@@ -152,7 +198,7 @@ app.get('/api/employees', (req, res) => {
 });
 
 app.get('/api/employees/:id', (req, res) => {
-  const employee = mockEmployees.find(emp => emp.id === req.params.id);
+  const employee = employees.find(emp => emp.id === req.params.id);
   
   if (employee) {
     res.json(employee);
@@ -162,42 +208,65 @@ app.get('/api/employees/:id', (req, res) => {
 });
 
 app.post('/api/employees', (req, res) => {
+  // Generate new ID
+  const maxId = employees.reduce((max, emp) => {
+    const id = parseInt(emp.id);
+    return id > max ? id : max;
+  }, 0);
+  
   const newEmployee = {
-    id: String(mockEmployees.length + 1),
+    id: String(maxId + 1),
     ...req.body,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
   
-  mockEmployees.push(newEmployee);
+  employees.push(newEmployee);
+  saveData(); // Persist to file
+  
+  console.log(`✅ Created employee: ${newEmployee.firstName} ${newEmployee.lastName}`);
   res.status(201).json(newEmployee);
 });
 
 app.put('/api/employees/:id', (req, res) => {
-  const index = mockEmployees.findIndex(emp => emp.id === req.params.id);
+  const index = employees.findIndex(emp => emp.id === req.params.id);
   
   if (index !== -1) {
-    mockEmployees[index] = {
-      ...mockEmployees[index],
+    employees[index] = {
+      ...employees[index],
       ...req.body,
       id: req.params.id,
       updatedAt: new Date().toISOString()
     };
-    res.json(mockEmployees[index]);
+    saveData(); // Persist to file
+    
+    console.log(`✏️ Updated employee: ${employees[index].firstName} ${employees[index].lastName}`);
+    res.json(employees[index]);
   } else {
     res.status(404).json({ error: 'Employee not found' });
   }
 });
 
 app.delete('/api/employees/:id', (req, res) => {
-  const index = mockEmployees.findIndex(emp => emp.id === req.params.id);
+  const index = employees.findIndex(emp => emp.id === req.params.id);
   
   if (index !== -1) {
-    mockEmployees.splice(index, 1);
+    const deleted = employees.splice(index, 1)[0];
+    saveData(); // Persist to file
+    
+    console.log(`🗑️ Deleted employee: ${deleted.firstName} ${deleted.lastName}`);
     res.status(204).send();
   } else {
     res.status(404).json({ error: 'Employee not found' });
   }
+});
+
+// Reset data endpoint (for development)
+app.post('/api/reset-data', (req, res) => {
+  employees = [...initialEmployees];
+  saveData();
+  console.log('🔄 Data reset to initial state');
+  res.json({ message: 'Data reset successfully', count: employees.length });
 });
 
 // Catch all route
@@ -210,6 +279,8 @@ app.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
   console.log(`📡 Health check: http://localhost:${PORT}/health`);
   console.log(`👥 Employees API: http://localhost:${PORT}/api/employees`);
+  console.log(`💾 Data persistence: Enabled (${DATA_FILE})`);
+  console.log(`🔄 Reset data: POST http://localhost:${PORT}/api/reset-data`);
 });
 
 export default app;

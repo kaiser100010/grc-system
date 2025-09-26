@@ -387,11 +387,7 @@ export const EmployeeList: React.FC = () => {
                     type="checkbox"
                     checked={selectedEmployees.length === employees.length && employees.length > 0}
                     onChange={toggleSelectAll}
-                    className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                    style={{ 
-                      accentColor: '#3b82f6',
-                      cursor: 'pointer'
-                    }}
+                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                   />
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -438,11 +434,7 @@ export const EmployeeList: React.FC = () => {
                         type="checkbox"
                         checked={selectedEmployees.includes(employee.id)}
                         onChange={() => toggleEmployeeSelection(employee.id)}
-                        className="w-4 h-4 text-blue-600 bg-white border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                        style={{ 
-                          accentColor: '#3b82f6',
-                          cursor: 'pointer'
-                        }}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
                     </td>
                     <td className="px-6 py-4">

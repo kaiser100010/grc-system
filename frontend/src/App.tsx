@@ -2,15 +2,16 @@
 
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 
-// Importar solo los componentes que existen
+// Importar componentes
 import { EmployeeList, EmployeeDetails } from './components/modules/resources/employees';
 
-// Componente temporal para Layout
+// Layout simple
 const SimpleLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header simple */}
+      {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -31,14 +32,14 @@ const SimpleLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) =>
   );
 };
 
-// Componente placeholder para Dashboard
+// Dashboard placeholder
 const DashboardPlaceholder = () => (
   <div className="bg-white rounded-lg shadow p-6">
     <h2 className="text-2xl font-bold mb-4">Dashboard</h2>
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       <div className="bg-blue-50 p-4 rounded-lg">
         <h3 className="font-semibold text-blue-900">Total Employees</h3>
-        <p className="text-3xl font-bold text-blue-600">2</p>
+        <p className="text-3xl font-bold text-blue-600">5</p>
       </div>
       <div className="bg-green-50 p-4 rounded-lg">
         <h3 className="font-semibold text-green-900">Active Tasks</h3>
@@ -57,10 +58,9 @@ const DashboardPlaceholder = () => (
   </div>
 );
 
-// Componente para Login (placeholder)
+// Login placeholder
 const LoginPlaceholder = () => {
   const handleLogin = () => {
-    // Simular login guardando un token
     localStorage.setItem('token', 'dummy-token');
     window.location.href = '/dashboard';
   };
@@ -98,7 +98,7 @@ const LoginPlaceholder = () => {
   );
 };
 
-// Componente de ruta protegida simple
+// Protected route
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = !!localStorage.getItem('token');
   
@@ -111,74 +111,102 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        {/* Ruta de login */}
-        <Route path="/login" element={<LoginPlaceholder />} />
+    <>
+      {/* Toaster for notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            padding: '16px',
+            borderRadius: '8px',
+          },
+          success: {
+            duration: 3000,
+            style: {
+              background: '#10b981',
+              color: 'white',
+            },
+          },
+          error: {
+            duration: 5000,
+            style: {
+              background: '#ef4444',
+              color: 'white',
+            },
+          },
+        }}
+      />
 
-        {/* Rutas protegidas */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <SimpleLayout>
-                <Navigate to="/dashboard" replace />
-              </SimpleLayout>
-            </ProtectedRoute>
-          }
-        />
+      <Router>
+        <Routes>
+          {/* Login */}
+          <Route path="/login" element={<LoginPlaceholder />} />
 
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
-              <SimpleLayout>
-                <DashboardPlaceholder />
-              </SimpleLayout>
-            </ProtectedRoute>
-          }
-        />
+          {/* Protected routes */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <SimpleLayout>
+                  <Navigate to="/dashboard" replace />
+                </SimpleLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Rutas de empleados */}
-        <Route
-          path="/resources/employees"
-          element={
-            <ProtectedRoute>
-              <SimpleLayout>
-                <EmployeeList />
-              </SimpleLayout>
-            </ProtectedRoute>
-          }
-        />
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <SimpleLayout>
+                  <DashboardPlaceholder />
+                </SimpleLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        <Route
-          path="/resources/employees/:id"
-          element={
-            <ProtectedRoute>
-              <SimpleLayout>
-                <EmployeeDetails />
-              </SimpleLayout>
-            </ProtectedRoute>
-          }
-        />
+          {/* Employee routes */}
+          <Route
+            path="/resources/employees"
+            element={
+              <ProtectedRoute>
+                <SimpleLayout>
+                  <EmployeeList />
+                </SimpleLayout>
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Ruta 404 */}
-        <Route
-          path="*"
-          element={
-            <div className="min-h-screen flex items-center justify-center">
-              <div className="text-center">
-                <h1 className="text-6xl font-bold text-gray-900">404</h1>
-                <p className="mt-2 text-gray-600">Page not found</p>
-                <a href="/dashboard" className="mt-4 inline-block px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                  Go to Dashboard
-                </a>
+          <Route
+            path="/resources/employees/:id"
+            element={
+              <ProtectedRoute>
+                <SimpleLayout>
+                  <EmployeeDetails />
+                </SimpleLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 404 */}
+          <Route
+            path="*"
+            element={
+              <div className="min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-6xl font-bold text-gray-900">404</h1>
+                  <p className="mt-2 text-gray-600">Page not found</p>
+                  <a href="/dashboard" className="mt-4 inline-block px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                    Go to Dashboard
+                  </a>
+                </div>
               </div>
-            </div>
-          }
-        />
-      </Routes>
-    </Router>
+            }
+          />
+        </Routes>
+      </Router>
+    </>
   );
 }
 
