@@ -1,62 +1,38 @@
-﻿services:
+﻿# docker/docker-compose.dev.yml
+
+version: '3.8'
+
+services:
   postgres:
     image: postgres:15-alpine
-    container_name: grc_postgres_dev
-    restart: unless-stopped
+    container_name: grc-postgres
     environment:
-      POSTGRES_DB: grc_dev
-      POSTGRES_USER: grc_user
-      POSTGRES_PASSWORD: grc_password
-      PGDATA: /var/lib/postgresql/data/pgdata
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: grc_db
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - grc_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U grc_user -d grc_dev"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
-    container_name: grc_redis_dev
-    restart: unless-stopped
+    container_name: grc-redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    networks:
-      - grc_network
-    command: redis-server --appendonly yes --requirepass redis_password
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 10s
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
       timeout: 5s
       retries: 5
 
-  adminer:
-    image: adminer:latest
-    container_name: grc_adminer_dev
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    networks:
-      - grc_network
-    depends_on:
-      - postgres
-    environment:
-      ADMINER_DEFAULT_SERVER: postgres
-      ADMINER_DESIGN: dracula
-
 volumes:
   postgres_data:
-    driver: local
   redis_data:
-    driver: local
-
-networks:
-  grc_network:
-    driver: bridge
