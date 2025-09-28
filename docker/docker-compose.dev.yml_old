@@ -1,0 +1,37 @@
+﻿# docker-compose.dev.yml típico
+version: '3.8'
+
+services:
+  postgres:
+    container_name: grc-postgres
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres        # ← Este es tu usuario
+      POSTGRES_PASSWORD: postgres # ← Esta es tu contraseña
+      POSTGRES_DB: grc_db            # ← Este es tu database
+    ports:
+      - "5433:5432"                  # ← Puerto 5433 en tu máquina
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U grc_user -d grc_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    container_name: grc-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:

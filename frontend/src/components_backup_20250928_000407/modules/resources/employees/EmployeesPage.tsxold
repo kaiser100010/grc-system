@@ -1,0 +1,74 @@
+import React, { useState } from 'react';
+import EmployeeList from './EmployeeList';
+import EmployeeForm from './EmployeeForm';
+import EmployeeDetails from './EmployeeDetails';
+import { Employee } from '../../../types/resource.types';
+
+const EmployeesPage: React.FC = () => {
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const handleEditEmployee = (employee: Employee | null) => {
+    setEmployeeToEdit(employee);
+    setIsFormOpen(true);
+  };
+
+  const handleViewEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setIsDetailsOpen(true);
+  };
+
+  const handleSaveEmployee = (savedEmployee: Employee) => {
+    setIsFormOpen(false);
+    setEmployeeToEdit(null);
+    setRefreshKey(prev => prev + 1); // Trigger refresh of employee list
+  };
+
+  const handleCancelForm = () => {
+    setIsFormOpen(false);
+    setEmployeeToEdit(null);
+  };
+
+  const handleCloseDetails = () => {
+    setIsDetailsOpen(false);
+    setSelectedEmployee(null);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <EmployeeList
+          key={refreshKey}
+          onEditEmployee={handleEditEmployee}
+          onViewEmployee={handleViewEmployee}
+        />
+      </div>
+
+      {/* Modal de Formulario */}
+      <EmployeeForm
+        employee={employeeToEdit}
+        isOpen={isFormOpen}
+        onSave={handleSaveEmployee}
+        onCancel={handleCancelForm}
+      />
+
+      {/* Modal de Detalles */}
+      {isDetailsOpen && selectedEmployee && (
+        <EmployeeDetails
+          employee={selectedEmployee}
+          isOpen={isDetailsOpen}
+          onClose={handleCloseDetails}
+          onEdit={() => {
+            handleCloseDetails();
+            handleEditEmployee(selectedEmployee);
+          }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default EmployeesPage;

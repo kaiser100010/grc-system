@@ -1,249 +1,252 @@
+// Ruta: C:\Projects\GRC-Claude\grc-system\backend\src\controllers\auth.controller.ts
+
 import { Request, Response } from 'express';
-import bcrypt from 'bcrypt';
-import { SignJWT } from 'jose';
-import { z } from 'zod';
+import { AuthService } from '../services/auth.service';
 import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-// Esquemas de validación
-const loginSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-});
-
-const registerSchema = z.object({
-  email: z.string().email('Email inválido'),
-  password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
-  firstName: z.string().min(1, 'El nombre es requerido'),
-  lastName: z.string().min(1, 'El apellido es requerido'),
-  organizationName: z.string().min(1, 'El nombre de la organización es requerido'),
-});
-
-// Función para generar JWT
-async function generateToken(userId: string): Promise<string> {
-  const secret = new TextEncoder().encode(process.env.JWT_SECRET || 'fallback-secret');
-  
-  return await new SignJWT({ userId })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('7d')
-    .sign(secret);
+// Interfaz para Request autenticado
+interface AuthenticatedRequest extends Request {
+  user?: {
+    userId: string;
+    email: string;
+    role: string;
+  };
 }
 
-// Login
+/**
+ * POST /api/auth/login
+ * Login de usuario
+ */
 export const login = async (req: Request, res: Response) => {
   try {
-    const { email, password } = loginSchema.parse(req.body);
+    const { email, password } = req.body;
 
-    // Buscar usuario
-    const user = await prisma.user.findUnique({
-      where: { email },
-      include: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-    });
-
-    if (!user || !user.isActive) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Credenciales inválidas'
+    if (!email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email y contraseña son requeridos',
       });
     }
 
-    // Verificar contraseña
-    const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isPasswordValid) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Credenciales inválidas'
-      });
-    }
+    const result = await AuthService.login(email, password);
 
-    // Generar token
-    const token = await generateToken(user.id);
-
-    // Actualizar último login
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() },
-    });
-
-    // Respuesta
     res.json({
-      status: 'success',
-      data: {
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          organization: user.organization,
-        },
-      },
+      success: true,
+      data: result,
+      message: 'Login exitoso',
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Datos inválidos',
-        errors: error.issues
-      });
-    }
-
-    console.error('Login error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Error interno del servidor'
+    console.error('Error en login:', error);
+    res.status(401).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Error en login',
     });
   }
 };
 
-// Registro
+/**
+ * POST /api/auth/register
+ * Registro de nuevo usuario
+ */
 export const register = async (req: Request, res: Response) => {
   try {
-    const { email, password, firstName, lastName, organizationName } = 
-      registerSchema.parse(req.body);
+    const { email, password, firstName, lastName } = req.body;
 
-    // Verificar si el email ya existe
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
-
-    if (existingUser) {
-      return res.status(409).json({
-        status: 'error',
-        message: 'El email ya está registrado'
+    // Validación básica
+    if (!email || !password || !firstName || !lastName) {
+      return res.status(400).json({
+        success: false,
+        error: 'Todos los campos son requeridos',
       });
     }
 
-    // Hash password
-    const passwordHash = await bcrypt.hash(password, 12);
-
-    // Crear organización y usuario en transacción
-    const result = await prisma.$transaction(async (tx) => {
-      // Crear organización
-      const organization = await tx.organization.create({
-        data: {
-          name: organizationName,
-          description: `Organización creada para ${organizationName}`,
-          settings: {},
-        },
+    // Validar formato de email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email inválido',
       });
+    }
 
-      // Crear usuario admin
-      const user = await tx.user.create({
-        data: {
-          email,
-          passwordHash,
-          firstName,
-          lastName,
-          role: 'admin',
-          organizationId: organization.id,
-        },
-        include: {
-          organization: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-        },
+    // Validar contraseña
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        error: 'La contraseña debe tener al menos 8 caracteres',
       });
+    }
 
-      return { user, organization };
+    const result = await AuthService.register({
+      email,
+      password,
+      firstName,
+      lastName,
     });
-
-    // Generar token
-    const token = await generateToken(result.user.id);
 
     res.status(201).json({
-      status: 'success',
-      data: {
-        token,
-        user: {
-          id: result.user.id,
-          email: result.user.email,
-          firstName: result.user.firstName,
-          lastName: result.user.lastName,
-          role: result.user.role,
-          organization: result.user.organization,
-        },
-      },
+      success: true,
+      data: result,
+      message: 'Usuario registrado exitosamente',
     });
   } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Datos inválidos',
-        errors: error.issues
-      });
-    }
-
-    console.error('Register error:', error);
-    res.status(500).json({
-      status: 'error',
-      message: 'Error interno del servidor'
+    console.error('Error en registro:', error);
+    res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Error en registro',
     });
   }
 };
 
-// Obtener perfil del usuario actual
-export const getProfile = async (req: Request, res: Response) => {
+/**
+ * POST /api/auth/refresh
+ * Renovar token usando refresh token
+ */
+export const refresh = async (req: Request, res: Response) => {
   try {
-    const userId = (req as any).user?.id;
-    
-    if (!userId) {
-      return res.status(401).json({
-        status: 'error',
-        message: 'Usuario no autenticado'
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Refresh token es requerido',
       });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        isActive: true,
-        createdAt: true,
-        lastLogin: true,
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            description: true,
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      return res.status(404).json({
-        status: 'error',
-        message: 'Usuario no encontrado'
-      });
-    }
+    const tokens = await AuthService.refreshToken(refreshToken);
 
     res.json({
-      status: 'success',
-      data: { user },
+      success: true,
+      data: tokens,
+      message: 'Token renovado exitosamente',
     });
   } catch (error) {
-    console.error('Profile error:', error);
+    console.error('Error renovando token:', error);
+    res.status(401).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Error renovando token',
+    });
+  }
+};
+
+/**
+ * GET /api/auth/me
+ * Obtener perfil del usuario autenticado
+ */
+export const getProfile = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'No autenticado',
+      });
+    }
+
+    const profile = await AuthService.getProfile(req.user.userId);
+
+    res.json({
+      success: true,
+      data: profile,
+    });
+  } catch (error) {
+    console.error('Error obteniendo perfil:', error);
     res.status(500).json({
-      status: 'error',
-      message: 'Error interno del servidor'
+      success: false,
+      error: error instanceof Error ? error.message : 'Error obteniendo perfil',
+    });
+  }
+};
+
+/**
+ * PUT /api/auth/change-password
+ * Cambiar contraseña
+ */
+export const changePassword = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        error: 'No autenticado',
+      });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: 'Contraseña actual y nueva son requeridas',
+      });
+    }
+
+    const result = await AuthService.changePassword(
+      req.user.userId,
+      currentPassword,
+      newPassword
+    );
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    console.error('Error cambiando contraseña:', error);
+    res.status(400).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Error cambiando contraseña',
+    });
+  }
+};
+
+/**
+ * POST /api/auth/logout
+ * Logout (principalmente para limpiar en el cliente)
+ */
+export const logout = async (req: AuthenticatedRequest, res: Response) => {
+  // En una implementación más completa, aquí podrías:
+  // - Invalidar el token en una blacklist
+  // - Limpiar sesiones en Redis
+  // - Registrar el evento de logout
+
+  res.json({
+    success: true,
+    message: 'Logout exitoso',
+  });
+};
+
+/**
+ * POST /api/auth/verify
+ * Verificar si un token es válido
+ */
+export const verify = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        error: 'Token es requerido',
+      });
+    }
+
+    const payload = AuthService.verifyAccessToken(token);
+
+    res.json({
+      success: true,
+      data: {
+        valid: true,
+        payload,
+      },
+    });
+  } catch (error) {
+    res.json({
+      success: true,
+      data: {
+        valid: false,
+        error: error instanceof Error ? error.message : 'Token inválido',
+      },
     });
   }
 };

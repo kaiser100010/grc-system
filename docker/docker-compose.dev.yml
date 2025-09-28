@@ -1,28 +1,26 @@
-﻿# docker/docker-compose.dev.yml
-
 version: '3.8'
 
 services:
   postgres:
-    image: postgres:15-alpine
     container_name: grc-postgres
+    image: postgres:15-alpine
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: postgres123
       POSTGRES_DB: grc_db
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d grc_db"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
-    image: redis:7-alpine
     container_name: grc-redis
+    image: redis:7-alpine
     ports:
       - "6379:6379"
     volumes:

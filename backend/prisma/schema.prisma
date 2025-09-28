@@ -1,5 +1,3 @@
-// backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -9,139 +7,312 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// User model for authentication
 model User {
-  id          String   @id @default(cuid())
-  email       String   @unique
-  firstName   String
-  lastName    String
-  password    String
-  role        UserRole @default(USER)
-  isActive    Boolean  @default(true)
-  lastLogin   DateTime?
-  
-  // Relationships
-  createdTasks     Task[]          @relation("TaskCreatedBy")
-  assignedTasks    TaskAssignment[]
-  createdRisks     Risk[]          @relation("RiskCreatedBy")
-  assignedRisks    RiskAssignment[]
-  createdControls  Control[]       @relation("ControlCreatedBy")
-  assignedControls ControlAssignment[]
-  createdIncidents Incident[]      @relation("IncidentCreatedBy")
-  assignedIncidents IncidentAssignment[]
-  createdPolicies  Policy[]        @relation("PolicyCreatedBy")
-  createdEvidence  Evidence[]      @relation("EvidenceCreatedBy")
-  
-  // Audit fields
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id                String     @id @default(cuid())
+  email             String     @unique
+  password          String
+  firstName         String     @map("first_name")
+  lastName          String     @map("last_name")
+  role              UserRole   @default(USER)
+  isActive          Boolean    @default(true) @map("is_active")
+  emailVerified     Boolean    @default(false) @map("email_verified")
+  lastLogin         DateTime?  @map("last_login")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  activities        Activity[]
+  assignedControls  Control[]  @relation("ControlOwner")
+  uploadedEvidence  Evidence[] @relation("EvidenceUploader")
+  assignedIncidents Incident[] @relation("IncidentAssignee")
+  reportedIncidents Incident[] @relation("IncidentReporter")
+  createdPolicies   Policy[]   @relation("PolicyAuthor")
+  createdRisks      Risk[]     @relation("RiskCreator")
+  assignedRisks     Risk[]     @relation("RiskOwner")
+  assignedTasks     Task[]     @relation("AssignedTasks")
+  createdTasks      Task[]     @relation("CreatedTasks")
+
   @@map("users")
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(PENDING)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime?    @map("due_date")
+  startDate   DateTime?    @map("start_date")
+  endDate     DateTime?    @map("end_date")
+  progress    Int          @default(0)
+  assigneeId  String?      @map("assignee_id")
+  creatorId   String       @map("creator_id")
+  riskId      String?      @map("risk_id")
+  controlId   String?      @map("control_id")
+  incidentId  String?      @map("incident_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  activities  Activity[]
+  evidence    Evidence[]
+  assignee    User?        @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  control     Control?     @relation(fields: [controlId], references: [id])
+  creator     User         @relation("CreatedTasks", fields: [creatorId], references: [id])
+  incident    Incident?    @relation(fields: [incidentId], references: [id])
+  risk        Risk?        @relation(fields: [riskId], references: [id])
+
+  @@index([assigneeId])
+  @@index([creatorId])
+  @@index([status])
+  @@map("tasks")
+}
+
+model Risk {
+  id           String     @id @default(cuid())
+  title        String
+  description  String?
+  level        RiskLevel
+  status       RiskStatus @default(IDENTIFIED)
+  likelihood   Int
+  impact       Int
+  riskScore    Float      @map("risk_score")
+  residualRisk Float?     @map("residual_risk")
+  targetRisk   Float?     @map("target_risk")
+  ownerId      String     @map("owner_id")
+  creatorId    String     @map("creator_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  activities   Activity[]
+  evidence     Evidence[]
+  creator      User       @relation("RiskCreator", fields: [creatorId], references: [id])
+  owner        User       @relation("RiskOwner", fields: [ownerId], references: [id])
+  tasks        Task[]
+  controls     Control[]  @relation("ControlToRisk")
+  incidents    Incident[] @relation("IncidentToRisk")
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([level])
+  @@map("risks")
+}
+
+model Control {
+  id                 String        @id @default(cuid())
+  title              String
+  description        String?
+  type               ControlType
+  status             ControlStatus @default(NOT_IMPLEMENTED)
+  framework          String?
+  reference          String?
+  effectiveness      Int?
+  implementationDate DateTime?     @map("implementation_date")
+  lastTestDate       DateTime?     @map("last_test_date")
+  nextTestDate       DateTime?     @map("next_test_date")
+  ownerId            String        @map("owner_id")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @updatedAt @map("updated_at")
+  activities         Activity[]
+  owner              User          @relation("ControlOwner", fields: [ownerId], references: [id])
+  evidence           Evidence[]
+  tasks              Task[]
+  risks              Risk[]        @relation("ControlToRisk")
+
+  @@index([ownerId])
+  @@index([status])
+  @@map("controls")
+}
+
+model Incident {
+  id             String           @id @default(cuid())
+  title          String
+  description    String?
+  severity       IncidentSeverity
+  status         IncidentStatus   @default(OPEN)
+  detectedDate   DateTime         @map("detected_date")
+  resolvedDate   DateTime?        @map("resolved_date")
+  rootCause      String?          @map("root_cause")
+  impact         String?
+  resolution     String?
+  lessonsLearned String?          @map("lessons_learned")
+  reporterId     String           @map("reporter_id")
+  assigneeId     String?          @map("assignee_id")
+  createdAt      DateTime         @default(now()) @map("created_at")
+  updatedAt      DateTime         @updatedAt @map("updated_at")
+  activities     Activity[]
+  evidence       Evidence[]
+  assignee       User?            @relation("IncidentAssignee", fields: [assigneeId], references: [id])
+  reporter       User             @relation("IncidentReporter", fields: [reporterId], references: [id])
+  tasks          Task[]
+  risks          Risk[]           @relation("IncidentToRisk")
+
+  @@index([reporterId])
+  @@index([assigneeId])
+  @@index([status])
+  @@index([severity])
+  @@map("incidents")
+}
+
+model Policy {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  version        String
+  status         PolicyStatus @default(DRAFT)
+  effectiveDate  DateTime?    @map("effective_date")
+  reviewDate     DateTime?    @map("review_date")
+  nextReviewDate DateTime?    @map("next_review_date")
+  content        String?
+  authorId       String       @map("author_id")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  activities     Activity[]
+  evidence       Evidence[]
+  author         User         @relation("PolicyAuthor", fields: [authorId], references: [id])
+
+  @@index([authorId])
+  @@index([status])
+  @@map("policies")
+}
+
+model Evidence {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  fileName    String    @map("file_name")
+  filePath    String    @map("file_path")
+  fileSize    Int       @map("file_size")
+  mimeType    String    @map("mime_type")
+  uploaderId  String    @map("uploader_id")
+  taskId      String?   @map("task_id")
+  riskId      String?   @map("risk_id")
+  controlId   String?   @map("control_id")
+  incidentId  String?   @map("incident_id")
+  policyId    String?   @map("policy_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  control     Control?  @relation(fields: [controlId], references: [id])
+  incident    Incident? @relation(fields: [incidentId], references: [id])
+  policy      Policy?   @relation(fields: [policyId], references: [id])
+  risk        Risk?     @relation(fields: [riskId], references: [id])
+  task        Task?     @relation(fields: [taskId], references: [id])
+  uploader    User      @relation("EvidenceUploader", fields: [uploaderId], references: [id])
+
+  @@index([uploaderId])
+  @@map("evidence")
+}
+
+model Vendor {
+  id             String       @id @default(cuid())
+  name           String
+  contactName    String?      @map("contact_name")
+  contactEmail   String?      @map("contact_email")
+  contactPhone   String?      @map("contact_phone")
+  website        String?
+  riskLevel      VendorRisk   @default(LOW) @map("risk_level")
+  status         VendorStatus @default(PROSPECTIVE)
+  lastAssessment DateTime?    @map("last_assessment")
+  nextAssessment DateTime?    @map("next_assessment")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+  activities     Activity[]
+  systems        System[]
+
+  @@map("vendors")
+}
+
+model System {
+  id          String            @id @default(cuid())
+  name        String
+  description String?
+  criticality SystemCriticality
+  environment String?
+  dataTypes   String[]          @map("data_types")
+  vendorId    String?           @map("vendor_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  activities  Activity[]
+  assets      Asset[]
+  vendor      Vendor?           @relation(fields: [vendorId], references: [id])
+
+  @@index([vendorId])
+  @@map("systems")
+}
+
+model Asset {
+  id           String     @id @default(cuid())
+  name         String
+  description  String?
+  type         AssetType
+  serialNumber String?    @map("serial_number")
+  location     String?
+  value        Float?
+  systemId     String?    @map("system_id")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  activities   Activity[]
+  system       System?    @relation(fields: [systemId], references: [id])
+
+  @@index([systemId])
+  @@map("assets")
+}
+
+model Employee {
+  id         String         @id @default(cuid())
+  employeeId String         @unique @map("employee_id")
+  firstName  String         @map("first_name")
+  lastName   String         @map("last_name")
+  email      String         @unique
+  department String?
+  position   String?
+  manager    String?
+  status     EmployeeStatus @default(ACTIVE)
+  startDate  DateTime?      @map("start_date")
+  endDate    DateTime?      @map("end_date")
+  createdAt  DateTime       @default(now()) @map("created_at")
+  updatedAt  DateTime       @updatedAt @map("updated_at")
+  activities Activity[]
+
+  @@map("employees")
+}
+
+model Activity {
+  id         String    @id @default(cuid())
+  action     String
+  entityType String    @map("entity_type")
+  entityId   String    @map("entity_id")
+  details    Json?
+  ipAddress  String?   @map("ip_address")
+  userAgent  String?   @map("user_agent")
+  userId     String    @map("user_id")
+  taskId     String?   @map("task_id")
+  riskId     String?   @map("risk_id")
+  controlId  String?   @map("control_id")
+  incidentId String?   @map("incident_id")
+  policyId   String?   @map("policy_id")
+  vendorId   String?   @map("vendor_id")
+  systemId   String?   @map("system_id")
+  assetId    String?   @map("asset_id")
+  employeeId String?   @map("employee_record_id")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  asset      Asset?    @relation(fields: [assetId], references: [id])
+  control    Control?  @relation(fields: [controlId], references: [id])
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+  incident   Incident? @relation(fields: [incidentId], references: [id])
+  policy     Policy?   @relation(fields: [policyId], references: [id])
+  risk       Risk?     @relation(fields: [riskId], references: [id])
+  system     System?   @relation(fields: [systemId], references: [id])
+  task       Task?     @relation(fields: [taskId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
+  vendor     Vendor?   @relation(fields: [vendorId], references: [id])
+
+  @@index([userId])
+  @@index([entityType, entityId])
+  @@map("activities")
 }
 
 enum UserRole {
   ADMIN
-  MANAGER
+  RISK_MANAGER
+  COMPLIANCE_OFFICER
+  VIEWER
   USER
-  AUDITOR
-}
-
-// Employee model
-model Employee {
-  id           String   @id @default(cuid())
-  firstName    String
-  lastName     String
-  email        String   @unique
-  employeeId   String   @unique
-  phone        String?
-  position     String
-  department   Department
-  location     String
-  startDate    DateTime
-  endDate      DateTime?
-  managerId    String?
-  manager      Employee? @relation("ManagerEmployee", fields: [managerId], references: [id])
-  directReports Employee[] @relation("ManagerEmployee")
-  status       EmployeeStatus @default(ACTIVE)
-  skills       String[]
-  clearanceLevel String @default("NONE")
-  notes        String?
-  
-  // Relationships with other modules
-  taskAssignments    TaskAssignment[]
-  riskAssignments    RiskAssignment[]
-  controlAssignments ControlAssignment[]
-  incidentAssignments IncidentAssignment[]
-  
-  // Audit fields
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  createdBy    String
-  updatedBy    String
-  
-  @@map("employees")
-}
-
-enum EmployeeStatus {
-  ACTIVE
-  INACTIVE
-  ON_LEAVE
-  TERMINATED
-}
-
-enum Department {
-  IT
-  HR
-  FINANCE
-  OPERATIONS
-  LEGAL
-  SECURITY
-  COMPLIANCE
-}
-
-// Task model
-model Task {
-  id          String     @id @default(cuid())
-  title       String
-  description String?
-  status      TaskStatus @default(PENDING)
-  priority    Priority   @default(MEDIUM)
-  dueDate     DateTime?
-  completedAt DateTime?
-  
-  // Relationships
-  createdBy   String
-  creator     User @relation("TaskCreatedBy", fields: [createdBy], references: [id])
-  assignments TaskAssignment[]
-  
-  // Links to other entities
-  riskId      String?
-  risk        Risk? @relation(fields: [riskId], references: [id])
-  controlId   String?
-  control     Control? @relation(fields: [controlId], references: [id])
-  incidentId  String?
-  incident    Incident? @relation(fields: [incidentId], references: [id])
-  
-  // Audit fields
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@map("tasks")
-}
-
-model TaskAssignment {
-  id         String @id @default(cuid())
-  taskId     String
-  task       Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  userId     String?
-  user       User? @relation(fields: [userId], references: [id])
-  employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id])
-  assignedAt DateTime @default(now())
-  
-  @@unique([taskId, userId])
-  @@unique([taskId, employeeId])
-  @@map("task_assignments")
 }
 
 enum TaskStatus {
@@ -152,67 +323,11 @@ enum TaskStatus {
   OVERDUE
 }
 
-enum Priority {
+enum TaskPriority {
   LOW
   MEDIUM
   HIGH
   CRITICAL
-}
-
-// Risk model
-model Risk {
-  id            String     @id @default(cuid())
-  title         String
-  description   String?
-  category      RiskCategory
-  likelihood    Int        // 1-5 scale
-  impact        Int        // 1-5 scale
-  riskLevel     RiskLevel  // Calculated from likelihood * impact
-  status        RiskStatus @default(IDENTIFIED)
-  riskOwner     String?
-  
-  // Mitigation
-  mitigationPlan String?
-  residualRisk   Int?
-  reviewDate     DateTime?
-  
-  // Relationships
-  createdBy     String
-  creator       User @relation("RiskCreatedBy", fields: [createdBy], references: [id])
-  assignments   RiskAssignment[]
-  controls      Control[]
-  tasks         Task[]
-  
-  // Audit fields
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  @@map("risks")
-}
-
-model RiskAssignment {
-  id         String @id @default(cuid())
-  riskId     String
-  risk       Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
-  userId     String?
-  user       User? @relation(fields: [userId], references: [id])
-  employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id])
-  role       String // Owner, Reviewer, etc.
-  assignedAt DateTime @default(now())
-  
-  @@unique([riskId, userId])
-  @@unique([riskId, employeeId])
-  @@map("risk_assignments")
-}
-
-enum RiskCategory {
-  OPERATIONAL
-  FINANCIAL
-  STRATEGIC
-  COMPLIANCE
-  TECHNOLOGY
-  REPUTATIONAL
 }
 
 enum RiskLevel {
@@ -231,56 +346,6 @@ enum RiskStatus {
   CLOSED
 }
 
-// Control model
-model Control {
-  id            String        @id @default(cuid())
-  title         String
-  description   String?
-  controlType   ControlType
-  framework     Framework
-  frequency     Frequency
-  status        ControlStatus @default(DRAFT)
-  effectiveness ControlEffectiveness @default(NOT_TESTED)
-  
-  // Implementation details
-  owner         String?
-  implementation String?
-  testingNotes   String?
-  lastTested     DateTime?
-  nextReview     DateTime?
-  
-  // Relationships
-  createdBy     String
-  creator       User @relation("ControlCreatedBy", fields: [createdBy], references: [id])
-  assignments   ControlAssignment[]
-  riskId        String?
-  risk          Risk? @relation(fields: [riskId], references: [id])
-  tasks         Task[]
-  evidence      Evidence[]
-  
-  // Audit fields
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  @@map("controls")
-}
-
-model ControlAssignment {
-  id         String @id @default(cuid())
-  controlId  String
-  control    Control @relation(fields: [controlId], references: [id], onDelete: Cascade)
-  userId     String?
-  user       User? @relation(fields: [userId], references: [id])
-  employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id])
-  role       String // Owner, Tester, Reviewer
-  assignedAt DateTime @default(now())
-  
-  @@unique([controlId, userId])
-  @@unique([controlId, employeeId])
-  @@map("control_assignments")
-}
-
 enum ControlType {
   PREVENTIVE
   DETECTIVE
@@ -288,93 +353,15 @@ enum ControlType {
   COMPENSATING
 }
 
-enum Framework {
-  SOX
-  COSO
-  ISO27001
-  NIST
-  COBIT
-  CUSTOM
-}
-
-enum Frequency {
-  CONTINUOUS
-  DAILY
-  WEEKLY
-  MONTHLY
-  QUARTERLY
-  ANNUALLY
-  AD_HOC
-}
-
 enum ControlStatus {
-  DRAFT
-  ACTIVE
-  INACTIVE
-  RETIRED
+  NOT_IMPLEMENTED
+  IN_PROGRESS
+  IMPLEMENTED
+  NEEDS_UPDATE
+  DEPRECATED
 }
 
-enum ControlEffectiveness {
-  NOT_TESTED
-  EFFECTIVE
-  PARTIALLY_EFFECTIVE
-  INEFFECTIVE
-}
-
-// Incident model
-model Incident {
-  id            String         @id @default(cuid())
-  title         String
-  description   String?
-  severity      Severity
-  status        IncidentStatus @default(REPORTED)
-  category      IncidentCategory
-  
-  // Timeline
-  reportedAt    DateTime       @default(now())
-  detectedAt    DateTime?
-  resolvedAt    DateTime?
-  
-  // Impact assessment
-  businessImpact String?
-  financialImpact Float?
-  affectedSystems String[]
-  
-  // Resolution
-  rootCause     String?
-  resolution    String?
-  lessonsLearned String?
-  
-  // Relationships
-  createdBy     String
-  creator       User @relation("IncidentCreatedBy", fields: [createdBy], references: [id])
-  assignments   IncidentAssignment[]
-  tasks         Task[]
-  
-  // Audit fields
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  @@map("incidents")
-}
-
-model IncidentAssignment {
-  id         String @id @default(cuid())
-  incidentId String
-  incident   Incident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
-  userId     String?
-  user       User? @relation(fields: [userId], references: [id])
-  employeeId String?
-  employee   Employee? @relation(fields: [employeeId], references: [id])
-  role       String // Investigator, Owner, etc.
-  assignedAt DateTime @default(now())
-  
-  @@unique([incidentId, userId])
-  @@unique([incidentId, employeeId])
-  @@map("incident_assignments")
-}
-
-enum Severity {
+enum IncidentSeverity {
   LOW
   MEDIUM
   HIGH
@@ -382,175 +369,54 @@ enum Severity {
 }
 
 enum IncidentStatus {
-  REPORTED
-  INVESTIGATING
+  OPEN
+  IN_PROGRESS
   RESOLVED
   CLOSED
-}
-
-enum IncidentCategory {
-  SECURITY
-  OPERATIONAL
-  COMPLIANCE
-  DATA_BREACH
-  SYSTEM_FAILURE
-  OTHER
-}
-
-// Policy model
-model Policy {
-  id            String       @id @default(cuid())
-  title         String
-  description   String?
-  content       String       // Rich text content
-  version       String       @default("1.0")
-  status        PolicyStatus @default(DRAFT)
-  
-  // Lifecycle
-  effectiveDate DateTime?
-  reviewDate    DateTime?
-  approvedBy    String?
-  approvedAt    DateTime?
-  
-  // Relationships
-  createdBy     String
-  creator       User @relation("PolicyCreatedBy", fields: [createdBy], references: [id])
-  evidence      Evidence[]
-  
-  // Audit fields
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  @@map("policies")
+  ESCALATED
 }
 
 enum PolicyStatus {
   DRAFT
-  REVIEW
+  UNDER_REVIEW
   APPROVED
-  EFFECTIVE
-  RETIRED
+  ACTIVE
+  ARCHIVED
 }
 
-// Evidence model
-model Evidence {
-  id          String       @id @default(cuid())
-  title       String
-  description String?
-  fileName    String
-  filePath    String
-  fileSize    Int
-  mimeType    String
-  category    EvidenceCategory
-  
-  // Relationships
-  createdBy   String
-  creator     User @relation("EvidenceCreatedBy", fields: [createdBy], references: [id])
-  controlId   String?
-  control     Control? @relation(fields: [controlId], references: [id])
-  policyId    String?
-  policy      Policy? @relation(fields: [policyId], references: [id])
-  
-  // Audit fields
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@map("evidence")
-}
-
-enum EvidenceCategory {
-  CONTROL_TESTING
-  POLICY_DOCUMENTATION
-  AUDIT_REPORT
-  SCREENSHOT
-  OTHER
-}
-
-// Audit log model
-model AuditLog {
-  id         String   @id @default(cuid())
-  action     String   // CREATE, UPDATE, DELETE, etc.
-  resource   String   // EMPLOYEE, TASK, RISK, etc.
-  resourceId String
-  details    Json?    // JSON object with change details
-  userId     String?
-  userEmail  String?
-  ipAddress  String?
-  userAgent  String?
-  timestamp  DateTime @default(now())
-  
-  @@map("audit_logs")
-}
-
-// Vendor model (placeholder for future)
-model Vendor {
-  id            String      @id @default(cuid())
-  name          String
-  contactEmail  String
-  contactPhone  String?
-  address       String?
-  status        VendorStatus @default(ACTIVE)
-  riskLevel     RiskLevel    @default(LOW)
-  
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  @@map("vendors")
+enum VendorRisk {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
 }
 
 enum VendorStatus {
+  PROSPECTIVE
   ACTIVE
   INACTIVE
-  PENDING
-}
-
-// System model (placeholder for future)
-model System {
-  id          String       @id @default(cuid())
-  name        String
-  description String?
-  owner       String
-  status      SystemStatus @default(ACTIVE)
-  criticality Priority     @default(MEDIUM)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  @@map("systems")
-}
-
-enum SystemStatus {
-  ACTIVE
-  INACTIVE
-  MAINTENANCE
-  DEPRECATED
-}
-
-// Asset model (placeholder for future)
-model Asset {
-  id       String    @id @default(cuid())
-  name     String
-  type     AssetType
-  owner    String
-  status   AssetStatus @default(ACTIVE)
-  value    Float?
-  location String?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  @@map("assets")
+  TERMINATED
 }
 
 enum AssetType {
   HARDWARE
   SOFTWARE
   DATA
+  PERSONNEL
   FACILITY
+  CLOUD
 }
 
-enum AssetStatus {
+enum SystemCriticality {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum EmployeeStatus {
   ACTIVE
   INACTIVE
-  DISPOSED
+  ON_LEAVE
+  TERMINATED
 }

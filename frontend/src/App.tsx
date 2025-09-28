@@ -3,6 +3,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import { TestSyncPage } from './pages/TestSync';
 
 // Importar componentes
 import { EmployeeList, EmployeeDetails } from './components/modules/resources/employees';
@@ -19,6 +20,7 @@ const SimpleLayout: React.FC<{ children?: React.ReactNode }> = ({ children }) =>
             <nav className="flex space-x-4">
               <a href="/dashboard" className="text-gray-700 hover:text-gray-900">Dashboard</a>
               <a href="/resources/employees" className="text-gray-700 hover:text-gray-900">Employees</a>
+              <a href="/test-sync" className="text-gray-700 hover:text-gray-900">Test Sync</a>
             </nav>
           </div>
         </div>
@@ -189,6 +191,16 @@ function App() {
             }
           />
 
+          {/* Test Sync route - MOVIDO AQUÍ DENTRO DE ROUTES */}
+          <Route
+            path="/test-sync"
+            element={
+              <SimpleLayout>
+                <TestSyncPage />
+              </SimpleLayout>
+            }
+          />
+
           {/* 404 */}
           <Route
             path="*"
@@ -204,6 +216,14 @@ function App() {
               </div>
             }
           />
+		  		<Route
+  path="/test-sync"
+  element={
+    <SimpleLayout>
+      <TestSyncPage />
+    </SimpleLayout>
+  }
+/>
         </Routes>
       </Router>
     </>

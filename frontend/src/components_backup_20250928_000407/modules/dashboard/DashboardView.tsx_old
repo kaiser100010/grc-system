@@ -1,0 +1,336 @@
+import React from 'react';
+import { 
+  Shield, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock, 
+  Users, 
+  FileText, 
+  TrendingUp, 
+  Activity,
+  Target,
+  AlertCircle,
+  BarChart3
+} from 'lucide-react';
+
+export default function DashboardView() {
+  // Datos simulados para el dashboard
+  const kpiData = [
+    {
+      title: 'Riesgos Críticos',
+      value: '12',
+      change: '+2 esta semana',
+      changeType: 'negative' as const,
+      icon: AlertTriangle,
+      color: 'red'
+    },
+    {
+      title: 'Controles Activos',
+      value: '148',
+      change: '+5 este mes',
+      changeType: 'positive' as const,
+      icon: Shield,
+      color: 'blue'
+    },
+    {
+      title: 'Tareas Pendientes',
+      value: '23',
+      change: '-3 desde ayer',
+      changeType: 'positive' as const,
+      icon: Clock,
+      color: 'orange'
+    },
+    {
+      title: 'Cumplimiento',
+      value: '94%',
+      change: '+2% este trimestre',
+      changeType: 'positive' as const,
+      icon: CheckCircle,
+      color: 'green'
+    }
+  ];
+
+  const recentActivities = [
+    {
+      id: 1,
+      type: 'risk',
+      title: 'Nuevo riesgo identificado: Ciberseguridad',
+      user: 'María García',
+      time: 'Hace 2 horas',
+      icon: AlertTriangle,
+      iconColor: 'text-red-500'
+    },
+    {
+      id: 2,
+      type: 'control',
+      title: 'Control SOX-404 actualizado',
+      user: 'Carlos López',
+      time: 'Hace 4 horas',
+      icon: Shield,
+      iconColor: 'text-blue-500'
+    },
+    {
+      id: 3,
+      type: 'task',
+      title: 'Tarea de auditoría completada',
+      user: 'Ana Martínez',
+      time: 'Hace 6 horas',
+      icon: CheckCircle,
+      iconColor: 'text-green-500'
+    },
+    {
+      id: 4,
+      type: 'incident',
+      title: 'Incidente de seguridad resuelto',
+      user: 'David Ruiz',
+      time: 'Ayer',
+      icon: Activity,
+      iconColor: 'text-orange-500'
+    }
+  ];
+
+  const upcomingTasks = [
+    {
+      id: 1,
+      title: 'Revisión de políticas Q1',
+      dueDate: '15 Sep 2025',
+      priority: 'Alta',
+      assignee: 'Equipo Legal'
+    },
+    {
+      id: 2,
+      title: 'Auditoría interna ISO 27001',
+      dueDate: '20 Sep 2025',
+      priority: 'Crítica',
+      assignee: 'Auditoría TI'
+    },
+    {
+      id: 3,
+      title: 'Evaluación de riesgo de proveedores',
+      dueDate: '25 Sep 2025',
+      priority: 'Media',
+      assignee: 'Compras'
+    },
+    {
+      id: 4,
+      title: 'Actualización matriz de riesgos',
+      dueDate: '30 Sep 2025',
+      priority: 'Alta',
+      assignee: 'Gestión de Riesgos'
+    }
+  ];
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'Crítica': return 'text-red-600 bg-red-50 border-red-200';
+      case 'Alta': return 'text-orange-600 bg-orange-50 border-orange-200';
+      case 'Media': return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+      default: return 'text-gray-600 bg-gray-50 border-gray-200';
+    }
+  };
+
+  const getKpiColor = (color: string) => {
+    switch (color) {
+      case 'red': return 'bg-red-500';
+      case 'blue': return 'bg-blue-500';
+      case 'orange': return 'bg-orange-500';
+      case 'green': return 'bg-green-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  return (
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Dashboard GRC
+        </h1>
+        <p className="text-gray-600">
+          Visión general de riesgos, controles y cumplimiento
+        </p>
+      </div>
+
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {kpiData.map((kpi, index) => {
+          const IconComponent = kpi.icon;
+          return (
+            <div key={index} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className={`p-2 rounded-lg ${getKpiColor(kpi.color)}`}>
+                  <IconComponent className="h-5 w-5 text-white" />
+                </div>
+                <BarChart3 className="h-4 w-4 text-gray-400" />
+              </div>
+              
+              <div className="mb-2">
+                <h3 className="text-sm font-medium text-gray-600 mb-1">
+                  {kpi.title}
+                </h3>
+                <p className="text-2xl font-bold text-gray-900">
+                  {kpi.value}
+                </p>
+              </div>
+              
+              <div className={`text-xs ${
+                kpi.changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+              }`}>
+                {kpi.change}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent Activity */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Activity className="h-5 w-5 text-blue-500" />
+              Actividad Reciente
+            </h2>
+          </div>
+          
+          <div className="p-6">
+            <div className="space-y-4">
+              {recentActivities.map((activity) => {
+                const IconComponent = activity.icon;
+                return (
+                  <div key={activity.id} className="flex items-start gap-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex-shrink-0">
+                      <IconComponent className={`h-5 w-5 ${activity.iconColor}`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 mb-1">
+                        {activity.title}
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span>{activity.user}</span>
+                        <span>•</span>
+                        <span>{activity.time}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                Ver toda la actividad →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Upcoming Tasks */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Target className="h-5 w-5 text-green-500" />
+              Próximas Tareas
+            </h2>
+          </div>
+          
+          <div className="p-6">
+            <div className="space-y-4">
+              {upcomingTasks.map((task) => (
+                <div key={task.id} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:border-gray-200 transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-sm font-medium text-gray-900 mb-1">
+                      {task.title}
+                    </h4>
+                    <div className="flex items-center gap-2 text-xs text-gray-500">
+                      <Clock className="h-3 w-3" />
+                      <span>{task.dueDate}</span>
+                      <span>•</span>
+                      <span>{task.assignee}</span>
+                    </div>
+                  </div>
+                  
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
+                    {task.priority}
+                  </span>
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <button className="text-sm text-blue-600 hover:text-blue-700 font-medium">
+                Ver todas las tareas →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <Users className="h-5 w-5 text-purple-500" />
+            <h3 className="font-semibold text-gray-900">Recursos</h3>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Empleados</span>
+              <span className="text-sm font-medium">247</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Proveedores</span>
+              <span className="text-sm font-medium">43</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Sistemas</span>
+              <span className="text-sm font-medium">15</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <FileText className="h-5 w-5 text-indigo-500" />
+            <h3 className="font-semibold text-gray-900">Documentos</h3>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Políticas</span>
+              <span className="text-sm font-medium">28</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Evidencias</span>
+              <span className="text-sm font-medium">156</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Reportes</span>
+              <span className="text-sm font-medium">12</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-4">
+            <TrendingUp className="h-5 w-5 text-green-500" />
+            <h3 className="font-semibold text-gray-900">Estado General</h3>
+          </div>
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Riesgo Global</span>
+              <span className="text-sm font-medium text-orange-600">Medio</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Cumplimiento</span>
+              <span className="text-sm font-medium text-green-600">Óptimo</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-600">Madurez GRC</span>
+              <span className="text-sm font-medium text-blue-600">Nivel 3</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
